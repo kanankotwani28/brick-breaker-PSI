@@ -1,0 +1,149 @@
+@echo off
+REM ===================================================================
+REM  Brick Breaker - build a SIGNED RELEASE APK you can share
+REM
+REM  Double-click this file, or run it from a terminal.
+REM
+REM  On the first run it creates a keystore (brickbreaker.jks). KEEP THAT
+REM  FILE. If you lose it you can never ship an update to the same app -
+REM  Android identifies an app by its signature, so a different key means
+REM  a different app as far as every phone and the Play Store is concerned.
+REM ===================================================================
+
+setlocal enabledelayedexpansion
+cd /d "%~dp0"
+
+echo.
+echo ==========================================================
+echo   Brick Breaker - signed release APK
+echo ==========================================================
+echo.
+
+REM ---- 0. Check Java --------------------------------------------------
+where java >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: Java not found on PATH.
+    echo        Install JDK 17 from https://adoptium.net
+    goto :fail
+)
+
+REM ---- 1. Node dependencies -------------------------------------------
+REM android\capacitor.settings.gradle points at
+REM ..\node_modules\@capacitor\android\capacitor, so without this the
+REM Gradle build cannot resolve the :capacitor-android project at all.
+if not exist "node_modules\@capacitor\android" (
+    echo [1/5] Installing Capacitor packages...
+    call npm install
+    if errorlevel 1 (
+        echo ERROR: npm install failed. Is Node.js installed? https://nodejs.org
+        goto :fail
+    )
+) else (
+    echo [1/5] Capacitor packages present.
+)
+
+REM ---- 2. SDK location -------------------------------------------------
+if not exist "android\local.properties" (
+    if defined ANDROID_HOME (
+        > android\local.properties echo sdk.dir=%ANDROID_HOME:\=\\%
+        echo [2/5] Wrote android\local.properties from ANDROID_HOME.
+    ) else if defined ANDROID_SDK_ROOT (
+        > android\local.properties echo sdk.dir=%ANDROID_SDK_ROOT:\=\\%
+        echo [2/5] Wrote android\local.properties from ANDROID_SDK_ROOT.
+    ) else if exist "%LOCALAPPDATA%\Android\Sdk" (
+        > android\local.properties echo sdk.dir=%LOCALAPPDATA:\=\\%\\Android\\Sdk
+        echo [2/5] Found SDK at %LOCALAPPDATA%\Android\Sdk
+    ) else (
+        echo.
+        echo ERROR: Android SDK not found.
+        echo        Install Android Studio, open the "android" folder once,
+        echo        then re-run this script.
+        goto :fail
+    )
+) else (
+    echo [2/5] android\local.properties present.
+)
+
+REM ---- 3. Keystore ------------------------------------------------------
+if not exist "android\brickbreaker.jks" (
+    echo.
+    echo [3/5] No keystore yet - creating one.
+    echo.
+    set /p KSPASS=Choose a keystore password (remember it): 
+    if "!KSPASS!"=="" (
+        echo ERROR: password cannot be empty.
+        goto :fail
+    )
+    keytool -genkeypair -v -keystore android\brickbreaker.jks ^
+        -alias brickbreaker -keyalg RSA -keysize 2048 -validity 10000 ^
+        -storepass "!KSPASS!" -keypass "!KSPASS!" ^
+        -dname "CN=Brick Breaker, OU=Games, O=PSI, L=Delhi, S=Delhi, C=IN"
+    if errorlevel 1 (
+        echo ERROR: keytool failed.
+        goto :fail
+    )
+    > android\keystore.properties echo storeFile=brickbreaker.jks
+    >> android\keystore.properties echo storePassword=!KSPASS!
+    >> android\keystore.properties echo keyAlias=brickbreaker
+    >> android\keystore.properties echo keyPassword=!KSPASS!
+    echo.
+    echo   Created android\brickbreaker.jks
+    echo   BACK THIS FILE UP. Losing it means you can never update the app.
+    echo.
+) else (
+    echo [3/5] Keystore present.
+)
+
+REM ---- 4. Build ----------------------------------------------------------
+echo [4/5] Building (first run downloads ~1 GB, be patient)...
+echo.
+cd android
+call gradlew.bat assembleRelease
+if errorlevel 1 (
+    cd ..
+    echo.
+    echo ==========================================================
+    echo   BUILD FAILED
+    echo ==========================================================
+    echo.
+    echo Most common cause is the JDK version. This project uses the
+    echo Gradle 8.7 wrapper, which supports Java 17 to 21. On JDK 24 it
+    echo fails with "Unsupported class file major version 68", on JDK 25
+    echo with 69. Android Studio's bundled JBR is 25 - not a safe default.
+    echo.
+    echo   Check:  java -version
+    echo   Fix:    install JDK 17 or 21 and point JAVA_HOME at it
+    echo.
+    goto :fail
+)
+cd ..
+
+REM ---- 5. Collect --------------------------------------------------------
+set APK=android\app\build\outputs\apk\release\app-release.apk
+if not exist "%APK%" (
+    echo ERROR: build reported success but no APK at %APK%
+    goto :fail
+)
+copy /y "%APK%" "BrickBreaker-v2.0.apk" >nul
+
+echo.
+echo ==========================================================
+echo   DONE
+echo ==========================================================
+echo.
+echo   BrickBreaker-v2.0.apk   (in this folder)
+echo.
+echo Share that file directly - WhatsApp, Drive, email, anything.
+echo Whoever installs it needs to allow "install from unknown sources".
+echo.
+echo Install over USB with:
+echo     adb install -r BrickBreaker-v2.0.apk
+echo.
+endlocal
+pause
+exit /b 0
+
+:fail
+echo.
+pause
+exit /b 1

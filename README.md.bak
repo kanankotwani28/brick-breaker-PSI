@@ -1,0 +1,59 @@
+# Brick Breaker v2
+
+25 levels, star-gated tiers, coin shop, procedural backgrounds.
+
+## Build an APK to share
+
+**Windows:** double-click `build-release.bat`
+**macOS / Linux:** `./build-release.sh`
+
+Result: `BrickBreaker-v2.0.apk` in this folder. Send it to anyone.
+
+### You need first
+
+- **JDK 17** — not 21. The Gradle 8.2.1 wrapper here supports Java 8–20;
+  JDK 21 fails with *Unsupported class file major version 65*.
+  Get it from https://adoptium.net
+- **Android Studio** — for the SDK. Install it, open the `android` folder
+  once, then close it.
+- **Node.js** — https://nodejs.org
+
+First build downloads ~1 GB and takes 10–20 minutes. After that, seconds.
+
+### The keystore
+
+`build-release.bat` creates `android/brickbreaker.jks` on first run and asks
+you for a password.
+
+**Back that file up somewhere safe.** Android identifies an app by its
+signing key. Lose the keystore and you cannot ship an update — every phone
+and the Play Store will treat a re-signed build as a different app, and the
+only way forward is a new listing under a new package name.
+
+It is gitignored, along with the password file, so neither ends up in
+version control.
+
+## Other builds
+
+| Command | Output | Use |
+|---|---|---|
+| `build-release.bat` | signed APK | sharing directly |
+| `build-apk.bat` | debug APK | quick testing, no keystore |
+| `cd android && gradlew bundleRelease` | `.aab` | Play Store upload |
+
+## Files
+
+| | |
+|---|---|
+| `www/index.html` | the whole game, self-contained |
+| `android/` | Capacitor wrapper |
+| `BUILD_APK.md` | detailed build and signing notes |
+| `KNOWN_ISSUES.md` | what's fixed, what isn't |
+
+## Before submitting to Play
+
+1. Add back-button handling — see `KNOWN_ISSUES.md`. Right now the back
+   button exits the app mid-game.
+2. Check the current target API requirement. `targetSdkVersion` is 34 and
+   Google raises the floor annually; a stale target is a hard rejection.
+3. Bump `versionCode` in `android/app/build.gradle` on every upload.

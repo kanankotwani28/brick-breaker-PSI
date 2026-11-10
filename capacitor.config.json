@@ -1,0 +1,10 @@
+{
+  "appId": "com.psi.brickbreaker",
+  "appName": "Brick Breaker",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0a0d16",
+    "allowMixedContent": false
+  },
+  "server": { "androidScheme": "https" }
+}

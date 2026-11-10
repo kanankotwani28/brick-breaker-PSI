@@ -1,0 +1,9 @@
+node_modules/
+android/local.properties
+android/keystore.properties
+android/brickbreaker.jks
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+*.aab
